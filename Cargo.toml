@@ -1,0 +1,16 @@
+[package]
+name = "incuversi"
+version = "0.1.0"
+edition = "2021"
+description = "reversi position incubator for trainig."
+
+[dependencies]
+chrono = "0.4.42"
+clap = { version = "4.5.11", features = ["derive"] }
+indicatif = "0.18.3"
+rand = "0.8.5"
+rayon = "1.10.0"
+regex = "1"
+zstd = "0.13.3"
+
+[features]
