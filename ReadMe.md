@@ -1,4 +1,4 @@
-# tigerdenversi  
+# incuversi  
 position extraction program for training ruversi(https://github.com/o-jill/ruversi)  
 
 # License  
