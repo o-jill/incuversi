@@ -191,7 +191,7 @@ impl RuversiRunner {
     /// ダブり解消の処理のために確定石の欄にゼロを入れている。
     pub fn run_children(&self, rfen : &str)
             -> Result<Vec<(bitboard::BitBoard, i8, i8, i8)>, String> {
-        let depth = bitboard::count_empty_cells(&rfen)?;
+        let depth = bitboard::count_empty_cells(&rfen)? * 2;  // PASSが入って2倍に伸びても大丈夫
         // launch ruversi
         let curdir = std::env::current_dir().unwrap();
         let cmd = match self.spawn_children(rfen, depth as u32) {
