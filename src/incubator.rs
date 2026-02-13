@@ -311,9 +311,10 @@ impl Incubator {
             } else {
                 None
             };
-            let rr = ruversirunner::RuversiRunner::from_config(
+            let mut rr = ruversirunner::RuversiRunner::from_config(
                 &std::path::PathBuf::from(
                     self.ruversi_config.clone())).unwrap();
+            rr.set_verbose(self.verbose);
             let mut mates = boards.iter().flat_map(|(ban, _, _, _)| {
                 if !ban.is_last_n(self.mate) {panic!("!ban.is_last_n({})", self.mate);}
                 // rr.set_verbose(true);

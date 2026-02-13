@@ -206,7 +206,7 @@ impl RuversiRunner {
         let w = cmd.wait_with_output().unwrap();
         std::env::set_current_dir(curdir).unwrap();
         let txt = String::from_utf8(w.stdout).unwrap();
-        // eprintln!("txt:{txt}");
+        if self.verbose {println!("txt:{txt}");}
         let lines : Vec<_> = txt.split("\n").collect();
         if lines.len() < 10 {
             return Err(format!("invalid input {lines:?}"));
