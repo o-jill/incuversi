@@ -57,7 +57,7 @@ pub fn loadkifu_for_mate(files : &[String], d : &str, mate : u32,
 }
 
 #[allow(dead_code)]
-fn read_mate_file(buf : impl std::io::BufRead, progress : usize)
+fn read_mate_file(buf : impl std::io::BufRead, mate : u32)
         -> Result<Vec<(bitboard::BitBoard, i8, i8, i8)>, String> {
     let mut ret = Vec::new();
 
@@ -70,7 +70,7 @@ fn read_mate_file(buf : impl std::io::BufRead, progress : usize)
                 // rfen,score
                 let elem : Vec<&str> = l.split(",").collect();
                 let ban = bitboard::BitBoard::from(elem[0])?;
-                if !ban.is_progress(progress) {continue;}
+                if !ban.is_last_n(mate) {continue;}
 
                 let (b, w) = ban.fixedstones();
                 let score = match elem[1].parse::<i8>() {
@@ -86,32 +86,25 @@ fn read_mate_file(buf : impl std::io::BufRead, progress : usize)
 }
 
 #[allow(dead_code)]
-pub fn load_mates(path : &str, progress : usize)
+pub fn load_mates(path : &str, mate : u32)
         -> Result<Vec<(bitboard::BitBoard, i8, i8, i8)>, String> {
     let filepath = std::path::Path::new(path);
     if !filepath.exists() {return Err(format!("{path} does NOT exist!"));}
 
     if path.ends_with(".zst") || path.ends_with(".zstd") {
-        let f = std::fs::File::open(path);
-        if let Err(e) = f {
-            return Err(format!("error: {e} @ File::open"));
-        }
-        let z = zstd::Decoder::new(f.unwrap());
-        if let Err(e) = z {
-            return Err(format!("error: {e} @ zstd::Decoder::new"));
-        }
+        let f = std::fs::File::open(path)
+                .map_err(|e| format!("error: {e} @ File::open"))?;
+        let z = zstd::Decoder::new(f)
+                .map_err(|e| format!("error: {e} @ zstd::Decoder::new"))?;
 
-        let buf = std::io::BufReader::new(z.unwrap());
-        let ret = read_mate_file(buf, progress)?;
+        let buf = std::io::BufReader::new(z);
+        let ret = read_mate_file(buf, mate)?;
         Ok(ret)
     } else {
-        let f = std::fs::File::open(path);
-        if let Err(e) = f {
-            return Err(format!("{e}"));
-        }
+        let f = std::fs::File::open(path).map_err(|e| format!("{e}"))?;
 
-        let buf = std::io::BufReader::new(f.unwrap());
-        let ret = read_mate_file(buf, progress)?;
+        let buf = std::io::BufReader::new(f);
+        let ret = read_mate_file(buf, mate)?;
         Ok(ret)
     }
 }
