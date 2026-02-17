@@ -252,9 +252,9 @@ impl Incubator {
         }
 
         let dest_file = format!("mate{}.txt", self.mate - 1);
-        if std::path::Path::new(&dest_file).exists() {
-            panic!("{dest_file} exists!");
-        }
+        // if std::path::Path::new(&dest_file).exists() {
+        //     panic!("{dest_file} exists!");
+        // }
 
         // const RELY_ON_RUVERSI : bool = true;
         const RELY_ON_RUVERSI : bool = false;
