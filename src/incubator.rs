@@ -367,7 +367,7 @@ impl Incubator {
             if let Some(pb) = &pbchild {
                 pb.inc(1);  // 7
                 pb.finish();
-                self.multibar.remove(pb);
+                // self.multibar.remove(pb);
             }
             if let Some(pb ) = &pbtop {pb.inc(1);}
         }
