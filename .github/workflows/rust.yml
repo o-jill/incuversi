@@ -29,14 +29,14 @@ jobs:
       continue-on-error: true # --helpが指定されててエラーになるので無視する
     - name: run w/o progressbar
       run: |
-        cargo run --release -- kifu --kifudir kifu --log "extracting<DATETIME>.txt" --mate 7
+        cargo run --release -- kifu --kifudir kifu --log "extracting<DATETIME>.txt" --mate 7 --ru-config tools/ruversiconfig.txt
     - name: prepare for mate command
       run: |
         mkdir mates
         cp mate*.txt mates/
     - name: run w/ progressbar
       run: |
-        cargo run --release -- mate --kifudir mates --log "extracting<DATETIME>.txt" --mate 6 --progressbar
+        cargo run --release -- mate --kifudir mates --log "extracting<DATETIME>.txt" --mate 6 --progressbar --ru-config tools/ruversiconfig.txt
     - name: prepare for upload
       run: |
         mkdir upld
