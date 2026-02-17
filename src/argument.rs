@@ -28,6 +28,8 @@ pub struct Arg {
 
 #[derive(Debug, Subcommand)]
 pub enum Mode {
-    Kifu,  // Extract from kifu files
-    Mate,  // Extract from mate files
+    /// Extract from kifu files
+    Kifu,
+    /// Extract from mate files
+    Mate,
 }
