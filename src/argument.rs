@@ -18,6 +18,9 @@ pub struct Arg {
     /// get mate(N-1) positions by extracting mateN.
     #[arg(long, short, global = true, default_value_t = 3)]
     pub  mate : u32,
+    /// output directory
+    #[arg(short, long, global = true)]
+    pub output : Option<String>,
     /// ruversi config file
     #[arg(long, global = true)]
     pub ru_config : Option<String>,
@@ -32,4 +35,12 @@ pub enum Mode {
     Kifu,
     /// Extract from mate files
     Mate,
+    /// Extract from kifu filesv
+    Spread,
+    /// Deduplicate from kifu filesv
+    Dedup,
+    /// Convert rfen to short rfen
+    Shorten,
+    /// Validate rfen and score
+    Validate,
 }
