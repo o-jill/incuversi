@@ -40,7 +40,7 @@ pub fn loadkifu_for_mate(files : &[String], d : &str, mate : u32,
         let lines: Vec<&str> = content.split('\n').collect();
         let kifu = kifu::Kifu::from(&lines);
         kifu.list.iter().filter_map(|t| {
-            let ban = bitboard::BitBoard::from(&t.rfen).unwrap();
+            let ban = bitboard::BitBoard::try_from(t.rfen.as_str()).unwrap();
             // 指定の局面じゃない
             if ban.is_last_n(mate) {
                 let score = ban.count();
@@ -69,7 +69,7 @@ fn read_mate_file(buf : impl std::io::BufRead, mate : u32)
                 if l.len() < 11 || l.starts_with("#") {continue;}
                 // rfen,score
                 let elem : Vec<&str> = l.split(",").collect();
-                let ban = bitboard::BitBoard::from(elem[0])?;
+                let ban = bitboard::BitBoard::try_from(elem[0])?;
                 if !ban.is_last_n(mate) {continue;}
 
                 let (b, w) = ban.fixedstones();
