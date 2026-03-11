@@ -133,6 +133,8 @@ impl RuversiRunner {
         cmd.spawn()
     }
 
+    /// # Returns
+    /// Ok((rfen, score)) or Err(String)
     #[allow(dead_code)]
     pub fn run(&self, rfen : &str) -> Result<(String, String), String> {
         // launch another
@@ -157,7 +159,7 @@ impl RuversiRunner {
 
         let res = lines[12].to_ascii_lowercase();
         if self.verbose {println!("opp:{}", &res);}
-        let posptn = regex::Regex::new("nodes\\. ([A-Ha-h][1-8])").unwrap();
+        let posptn = regex::Regex::new("nodes\\. ([A-Ha-h][1-8]|[pP][sS])").unwrap();
         let xtxt = match posptn.captures(&res) {
             Some(cap) => {
                 String::from(&cap[1].to_lowercase())
@@ -231,6 +233,56 @@ impl RuversiRunner {
                         0, 0,
                         cap[1].parse::<f32>().ok()? as i8
                     ))
+                },
+                _ => {None}
+            }
+        }).collect::<Vec<_>>();
+
+        Ok(ret)
+    }
+
+    pub fn run_all_children(&self, rfen : &str)
+                -> Result<Vec<String>, String> {
+        let depth = bitboard::count_empty_cells(&rfen)? * 2;  // PASSが入って2倍に伸びても大丈夫
+        // launch ruversi
+        let curdir = std::env::current_dir().unwrap();
+        let cmd = match self.spawn_children(rfen, depth as u32) {
+            Err(msg) => {
+                std::env::set_current_dir(curdir).unwrap();
+                return Err(format!(
+                    "error running ruversi... [{msg}], config:[{self}]"))
+            },
+            Ok(prcs) => prcs,
+        };
+        // read stdout and get moves
+        let w = cmd.wait_with_output().unwrap();
+        std::env::set_current_dir(curdir).unwrap();
+        let txt = String::from_utf8(w.stdout).unwrap();
+        if self.verbose {println!("txt:{txt}");}
+        let lines : Vec<_> = txt.split("\n").collect();
+        if lines.len() < 10 {
+            return Err(format!("invalid input {lines:?}"));
+        }
+
+        // "val,{val:.2},{newban},{node}";
+        // ex.
+        // |__|__|__|__|__|__|__|__|  <-- 不要
+        // @@'s turn.  <-- 不要
+        // 8/8/8/2C3/3Aa3/8/8/8 w,50
+        // 8/8/3A4/3B3/3Aa3/8/8/8 w,17
+        // 8/8/8/3aA3/3C2/8/8/8 w,23
+        // 8/8/8/3aA3/3B3/4A3/8/8 w,12
+        // val:-0.3012 2185 nodes. D3c5D6e3F4c6F5 7msec  <-- 不要
+        // val,-1.62,8/8/3A4/3B3/3Aa3/8/8/8 w,1769 nodes. c3C4c5B4d2C2a3  <-- 不要
+        // val,-1.62,8/8/8/2C3/3Aa3/8/8/8 w,507 nodes. c3D3  <-- 不要
+        // val,-1.50,8/8/8/3aA3/3C2/8/8/8 w,2357 nodes. d6C4f4C5f6G5d3  <-- 不要
+        // val,-1.13,8/8/8/3aA3/3B3/4A3/8/8 w,1262 nodes. f4D3e7F3e3F6d6  <-- 不要
+        let scoreptn = regex::Regex::new("^(([0-8A-Ha-h\\/]+ [bw]),[-0-9.]+)").unwrap();
+        let ret = lines.iter().filter_map(|line| {
+            match scoreptn.captures(&line) {
+                Some(cap) => {
+                    // cap[1] : rfen, cap[2] : val
+                    Some(cap[0].to_string())
                 },
                 _ => {None}
             }
