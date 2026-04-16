@@ -50,7 +50,7 @@ impl From<argument::Arg> for Incubator {
         let kifudir = arg.kifudir;
         let outdir = arg.output.unwrap_or(".".to_string());
         // let matefiles = arg.mate_file.unwrap_or(String::new()).clone();
-        let ruversi_config = arg.ru_config.unwrap_or(String::new());
+        let ruversi_config = arg.ru_config.unwrap_or_default();
         let mate = arg.mate;
         let verbose = arg.verbose;
 
@@ -302,7 +302,7 @@ impl Incubator {
             let files = data_loader::findfiles(&format!("./{d}")).iter().map(
                     |fname| format!("{d}/{fname}")).collect::<Vec<String>>();
             let mut boards = files.iter().flat_map(|path| {
-                    data_loader::load_mates(&path, self.mate).unwrap()
+                    data_loader::load_mates(path, self.mate).unwrap()
                 }).collect();
             if let Some(pb) = &pbchild {pb.inc(1);}  // 1
 
@@ -438,9 +438,9 @@ impl Incubator {
                             if b.is_empty() {continue;}
 
                             let mut dest_file = outdir.clone();
-                            dest_file.push(&format!("mate{n}_{suffix}.txt"));
+                            dest_file.push(format!("mate{n}_{suffix}.txt"));
                             let mut f = OpenOptions::new()
-                                .create(true).append(true).open(&dest_file).unwrap();
+                                .create(true).append(true).open(dest_file).unwrap();
                             f.write_all(buf[n].as_bytes()).unwrap();
                         }
                         return;
@@ -466,12 +466,12 @@ impl Incubator {
                         let dir = std::path::Path::new(outdir);
                         if !dir.is_dir() {
                             if let Err(e) =
-                                    std::fs::create_dir_all(&outdir) {
+                                    std::fs::create_dir_all(outdir) {
                                 panic!("failed to create dir \"{outdir:?}\" : {e}");
                             }
                         }
                         let mut dest_file = outdir.clone();
-                        dest_file.push(&format!("mate{n}_{suffix}.txt"));
+                        dest_file.push(format!("mate{n}_{suffix}.txt"));
                         let mut f = OpenOptions::new()
                             .create(true).append(true).open(&dest_file).unwrap();
                         f.write_all(b.as_bytes()).unwrap();
@@ -618,7 +618,7 @@ impl Incubator {
                 None
             };
             for path in files {
-                if show_path {self.putlog(&format!("{path}"));}
+                if show_path {self.putlog(&path.to_string());}
 
                 // if let Err(e) = self.dedup_rfen(&path, &pbchild) {
                 //     panic!("{e} with {path}");
@@ -642,7 +642,7 @@ impl Incubator {
 
     /// find txt in a file, 'path'
     fn find_line(txt : &str, path : &str) -> bool {
-        if let Ok(fin) = OpenOptions::new().read(true).open(&path) {
+        if let Ok(fin) = OpenOptions::new().read(true).open(path) {
             let reader = BufReader::new(fin);
             for l in reader.lines() {
                 if l.unwrap().starts_with(txt) {
@@ -696,7 +696,7 @@ impl Incubator {
     /// find any of lines in a file, 'path'
     #[allow(dead_code)]
     fn find_line_any(lines : &[String], path : &str) -> bool {
-        if let Ok(fin) = OpenOptions::new().read(true).open(&path) {
+        if let Ok(fin) = OpenOptions::new().read(true).open(path) {
             let reader = BufReader::new(fin);
             for l in reader.lines() {
                 let l = l.unwrap();
@@ -715,7 +715,7 @@ impl Incubator {
     fn store_mirrored(data : &[String], path : &str) -> Result<(), std::io::Error> {
         let txt = data.join("\n") + "\n";
         let mut fout = OpenOptions::new()
-                .create(true).append(true).open(&path)?;
+                .create(true).append(true).open(path)?;
         fout.write_all(txt.as_bytes())?;
         fout.flush()?;
         Ok(())
@@ -732,7 +732,7 @@ impl Incubator {
         }
 
         let pbar = {
-            let fin = OpenOptions::new().read(true).open(&pathin)?;
+            let fin = OpenOptions::new().read(true).open(pathin)?;
             let reader = std::io::BufReader::new(fin);
             let lines = reader.lines().count();
             if self.show_progressbar {
@@ -748,7 +748,7 @@ impl Incubator {
                 }
             };
 
-        let fin = OpenOptions::new().read(true).open(&pathin)?;
+        let fin = OpenOptions::new().read(true).open(pathin)?;
         let reader = std::io::BufReader::new(fin);
         for l in reader.lines() {
             if let Some(pb) = &pbar {pb.inc(1);}
@@ -810,7 +810,7 @@ impl Incubator {
         }
 
         let pbar = {
-            let fin = OpenOptions::new().read(true).open(&pathin)?;
+            let fin = OpenOptions::new().read(true).open(pathin)?;
             let reader = std::io::BufReader::new(fin);
             let lines = reader.lines().count();
             if self.show_progressbar {
@@ -887,7 +887,7 @@ impl Incubator {
             }
         });
 
-        let fin = OpenOptions::new().read(true).open(&pathin)?;
+        let fin = OpenOptions::new().read(true).open(pathin)?;
         let reader = std::io::BufReader::new(fin);
         for l in reader.lines() {
             if let Some(pb) = &pbar {pb.inc(1);}
@@ -1011,7 +1011,7 @@ impl Incubator {
                     l.write_all(format!("{path}\n").as_bytes()).unwrap();
                 }
                 if show_path {print!("{path}\r");}
-                if let Some(pb) = &pbchild {pb.set_message(format!("{fname}"));}
+                if let Some(pb) = &pbchild {pb.set_message(fname.to_string());}
                 let mut boards = data_loader::load_mates_all(&path).unwrap();
 
                 data_loader::dedupboards(&mut boards, &mut self.log, show_path);
@@ -1100,7 +1100,7 @@ impl Incubator {
                     l.write_all(format!("{path}\n").as_bytes()).unwrap();
                 }
                 if show_path {print!("{path}\r");}
-                if let Some(pb) = &pbchild {pb.set_message(format!("{fname}"));}
+                if let Some(pb) = &pbchild {pb.set_message(fname.to_string());}
                 let mut boards = data_loader::load_mates_all(&path).unwrap();
 
                 data_loader::dedupboards(&mut boards, &mut self.log, show_path);

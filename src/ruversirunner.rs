@@ -100,7 +100,7 @@ impl RuversiRunner {
                     } else if let Some(evf) = l.strip_prefix("evfile:") {
                         self.evfile = String::from(evf.trim());
                     } else if let Some(args_txt) = l.strip_prefix("args:") {
-                        self.args = parse_args_tag(&args_txt)?;
+                        self.args = parse_args_tag(args_txt)?;
                     }
                 },
                 Err(err) => {return Err(err.to_string())}
@@ -193,7 +193,7 @@ impl RuversiRunner {
     /// ダブり解消の処理のために確定石の欄にゼロを入れている。
     pub fn run_children(&self, rfen : &str)
             -> Result<Vec<(bitboard::BitBoard, i8, i8, i8)>, String> {
-        let depth = bitboard::count_empty_cells(&rfen)? * 2;  // PASSが入って2倍に伸びても大丈夫
+        let depth = bitboard::count_empty_cells(rfen)? * 2;  // PASSが入って2倍に伸びても大丈夫
         // launch ruversi
         let curdir = std::env::current_dir().unwrap();
         let cmd = match self.spawn_children(rfen, depth as u32) {
@@ -225,7 +225,7 @@ impl RuversiRunner {
         // val,-1.13,8/8/8/3aA3/3B3/4A3/8/8 w,1262 nodes. f4D3e7F3e3F6d6
         let scoreptn = regex::Regex::new("val,([-0-9.]+),([^ ]+ [bw])").unwrap();
         let ret = lines.iter().filter_map(|line| {
-            match scoreptn.captures(&line) {
+            match scoreptn.captures(line) {
                 Some(cap) => {
                     // cap[1] : val, cap[2] : rfen
                     Some((
@@ -243,7 +243,7 @@ impl RuversiRunner {
 
     pub fn run_all_children(&self, rfen : &str)
                 -> Result<Vec<String>, String> {
-        let depth = bitboard::count_empty_cells(&rfen)? * 2;  // PASSが入って2倍に伸びても大丈夫
+        let depth = bitboard::count_empty_cells(rfen)? * 2;  // PASSが入って2倍に伸びても大丈夫
         // launch ruversi
         let curdir = std::env::current_dir().unwrap();
         let cmd = match self.spawn_children(rfen, depth as u32) {
@@ -279,13 +279,7 @@ impl RuversiRunner {
         // val,-1.13,8/8/8/3aA3/3B3/4A3/8/8 w,1262 nodes. f4D3e7F3e3F6d6  <-- 不要
         let scoreptn = regex::Regex::new("^(([0-8A-Ha-h\\/]+ [bw]),[-0-9.]+)").unwrap();
         let ret = lines.iter().filter_map(|line| {
-            match scoreptn.captures(&line) {
-                Some(cap) => {
-                    // cap[1] : rfen, cap[2] : val
-                    Some(cap[0].to_string())
-                },
-                _ => {None}
-            }
+            scoreptn.captures(line).map(|cap| cap[0].to_string())
         }).collect::<Vec<_>>();
 
         Ok(ret)
