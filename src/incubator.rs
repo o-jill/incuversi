@@ -910,15 +910,13 @@ impl Incubator {
                 panic!("target.contains(&line)");
             }
             let ban = bitboard::BitBoard::try_from(elem[0]).unwrap();
-            let mscore = if score.starts_with("-") {
-                score[1..].to_string()
-            } else {
-                if score == "0" {
+            let mscore = if let Some(stripped) = score.strip_prefix("-") {
+                    stripped.to_string()
+                } else if score == "0" {
                     score.to_string()
                 } else {
                     String::from("-") + score
-                }
-            };
+                };
             let c = format!("{},{mscore}", ban.flip_all());
             if !target.contains(&c) {
                 panic!("target.contains(&{c}) in {target:?}");

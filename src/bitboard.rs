@@ -1201,6 +1201,7 @@ impl BitBoard {
     /// - None : no empty cells.
     /// - Some(vec![PASS])  : no available cells. pass.
     /// - Some(Vec![n]) : available cells.
+    #[allow(dead_code)]
     pub fn genmove(&self) -> Option<Vec<u8>> {
         let stones = self.black | self.white;
         if stones == u64::MAX {return None;}
