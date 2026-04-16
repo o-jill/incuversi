@@ -1004,7 +1004,9 @@ impl Incubator {
             } else {
                 None
             };
-            for fname in data_loader::findfiles(&format!("./{d}")) {
+            let files = data_loader::findfiles(&format!("./{d}"));
+            if let Some(pb) = &pbchild {pb.set_length(files.len() as u64 + 4);}
+            for fname in files {
                 let path = format!("{d}/{fname}");
                 {
                     let shared = std::sync::Mutex::new(&self.log);
@@ -1012,6 +1014,7 @@ impl Incubator {
                     l.write_all(format!("{path}\n").as_bytes()).unwrap();
                 }
                 if show_path {print!("{path}\r");}
+                if let Some(pb) = &pbchild {pb.set_message(format!("{fname}"));}
                 let mut boards = data_loader::load_mates_all(&path).unwrap();
 
                 data_loader::dedupboards(&mut boards, &mut self.log, show_path);
