@@ -46,7 +46,7 @@ impl From<argument::Arg> for Incubator {
         let path = format_log_path(&arg.log);
         let log = match std::fs::File::create(path) {
         Ok(f) => {f},
-        Err(e) => {panic!("{e}")},
+        Err(e) => {panic!("{e}");},
         };
 
         let mode = arg.md;
