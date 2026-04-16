@@ -56,6 +56,7 @@ pub fn loadkifu_for_mate(files : &[String], d : &str, mate : u32,
     boards
 }
 
+#[allow(dead_code)]
 pub fn load_mate(files : &[String], d : &str,
         log : &mut std::fs::File, show_path : bool)
         -> Vec<(bitboard::BitBoard, i8, i8, i8)> {
