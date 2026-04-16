@@ -11,7 +11,7 @@ pub struct Arg {
     pub kifudir : Vec<String>,
     /// show progressbar
     #[arg(long, global = true, default_value_t = false)]
-    pub progressbar : bool,
+    pub no_progressbar : bool,
     /// log file path.
     #[arg(long, global = true)]
     pub log : Option<String>,

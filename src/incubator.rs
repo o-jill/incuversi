@@ -66,7 +66,7 @@ impl From<argument::Arg> for Incubator {
             multibar : MultiProgress::new(),
             outdir,
             ruversi_config,
-            show_progressbar : arg.progressbar,
+            show_progressbar : !arg.no_progressbar,
             verbose,
         }
     }
