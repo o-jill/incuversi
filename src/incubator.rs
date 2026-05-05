@@ -1,7 +1,11 @@
 use super::*;
 use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle, MultiProgress};
-use std::io::{BufRead, BufReader};
+use rayon::join;
+use regex::Regex;
+use std::ptr::read;
+use std::str::FromStr;
+use std::io::{BufRead, BufReader, BufWriter};
 use std::fs::OpenOptions;
 use std::sync::mpsc;
 use std::path::PathBuf;
@@ -1146,6 +1150,138 @@ impl Incubator {
                         },
                     }
                     if !data.is_empty() {tx.send(data).unwrap();}
+                    if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                }
+                if let Some(pb) = &pbchild {pb.inc(1);}  // 3
+
+                tx.send(String::new()).unwrap();  // send quit
+                store_thread.join().unwrap();
+                if let Some(pb) = &pbgrandchild {
+                    pb.finish();
+                    self.multibar.remove(pb);
+                }
+            }
+            if let Some(pb) = &pbchild {pb.inc(1);}  // 1
+
+            // if let Some(pb) = &pbgrandchild {
+            //     pb.finish();
+            //     self.multibar.remove(pb);
+            // }
+            if let Some(pb) = &pbchild {
+                pb.inc(1);  // 4
+                pb.finish();
+                // self.multibar.remove(pb);
+            }
+            if let Some(pb ) = &pbtop {pb.inc(1);}
+        }
+
+        if let Some(pb ) = &pbtop {
+            pb.finish_with_message("done!");
+        }
+        Ok(())
+    }
+
+    /// validate w/ cassio protocol
+    fn run_validate_cassio(&mut self) -> Result<(), std::io::Error> {
+        if self.mate < 3 || 60 <= self.mate {
+            panic!("self.mate < 3 || 60 <= self.mate");
+        }
+
+        let pbtop = if self.show_progressbar {
+            let pb = self.multibar.add(
+                ProgressBar::new(self.kifudir.len() as u64 * 2 + 1));
+            Some(pb)
+        } else {
+            None
+        };
+
+        // read kifus and extract moves.
+        let show_path = self.verbose;
+        let mut outdir = std::env::current_dir().unwrap().clone();
+        outdir.push(&self.outdir);
+        // let outdir = self.outdir.clone();
+        if let Some(pb) = &pbtop {pb.inc(1);}  // 1
+        for d in self.kifudir.iter() {
+            let files = data_loader::findfiles(&format!("./{d}"));
+            if let Some(pb) = &pbtop {pb.inc(1);}  // 2n
+
+            let pbchild = if self.show_progressbar {
+                let pb = self.multibar.add(ProgressBar::new(files.iter().len() as u64));
+                    // load, dedup, extract, dedup, augmentation, dedup, store
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}]{wide_bar}[{eta_precise}] {pos}/{len} {msg}").unwrap()
+                    .progress_chars("📜📔📖"));
+                pb.set_message("loading kifu...");
+                Some(pb)
+            } else {
+                None
+            };
+            let cas = match cassiorunner::CassioRunner::from_config(
+                    &std::path::PathBuf::from(self.ruversi_config.clone())) {
+                        Ok(cas) => {cas},
+                        Err(e) => {
+                            panic!("failed to run cassio program: {e}")
+                        },
+                        };
+            let mut cassio =
+                cassio::OthelloEngineProtocolServer::new1(cas.run().unwrap());
+            // cassio.setturn(bitboard::SENTE);
+            cassio.init().unwrap();
+            for fname in files {
+                let path = format!("{d}/{fname}");
+                {
+                    let shared = std::sync::Mutex::new(&self.log);
+                    let mut l = shared.lock().unwrap();
+                    l.write_all(format!("{path}\n").as_bytes()).unwrap();
+                }
+                if show_path {print!("{path}\r");}
+                let mut boards = data_loader::load_mates_all(&path).unwrap();
+
+                data_loader::dedupboards(&mut boards, &mut self.log, show_path);
+                if let Some(pb) = &pbchild {pb.inc(1);}  // 2
+
+                let outdir = outdir.clone();
+                let (tx, rx) = std::sync::mpsc::channel::<String>();
+                let store_thread = std::thread::spawn(move || {
+                    Self::store_rfen_thread(rx, &outdir, "validate");
+                });
+
+                // validate score w/ ruversi
+                let pbgrandchild = if self.show_progressbar {
+                    let pb = self.multibar.add(
+                    ProgressBar::new(boards.len() as u64));
+                    pb.set_style(
+                        ProgressStyle::with_template(
+                            "[{elapsed_precise}] {wide_bar} [{eta_precise}] {pos}/{len} {msg}").unwrap()
+                        .progress_chars("🥚🐔🐤"));
+                    Some(pb)
+                } else {
+                    None
+                };
+                for (ban, _, _, score) in boards {
+                    // if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                    // data += &format!("{},{score}\n", ban.to_string_short());
+                    // eprintln!("{},{score}", ban.to_string_short());
+                    let response = match cassio.endgame_search(&ban.to_obf(), -999f32, 999f32,
+                        ban.nblank() as u8 * 2, 0) {
+                            Ok(msg) => {msg},
+                            Err(e) => {panic!("cassio com error: {e}")},
+                        };
+                    // response:
+                    // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
+                    // range: "B:{val:.1} <= v <= B:{val:.1}"
+                    // range: "W:{val:.1} <= v <= W:{val:.1}"
+                    let valptn = Regex::new("[BW]:([0-9.])").unwrap();
+                    let cap = valptn.captures(&response).unwrap();
+                    let score_txt = cap.get(1).unwrap().as_str();
+                    let new_score = score_txt.parse::<f32>().unwrap();
+                    if new_score - new_score.floor() > 1e-5 {
+                        panic!("new_score:{new_score} is not an integer!");
+                    }
+                    let new_score = new_score as i8;
+                    let data = format!("{},{new_score}", ban.to_string_short());
+                    tx.send(data).unwrap();
                     if let Some(pb) = &pbgrandchild {pb.inc(1);}
                 }
                 if let Some(pb) = &pbchild {pb.inc(1);}  // 3
