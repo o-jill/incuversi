@@ -1,12 +1,11 @@
 use super::*;
 use std::io::{BufRead, BufReader, Read};
-use std::os::unix::thread;
 use std::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use std::thread::sleep;
 use std::time::Duration;
 
-const HEADER : &str = "ENGINE-PROTOCOL ";
-const VERSION: &str = env!("CARGO_PKG_VERSION");
+// const HEADER : &str = "ENGINE-PROTOCOL ";
+// const VERSION: &str = env!("CARGO_PKG_VERSION");
 const READY : &str = "ready.\n";
 
 
@@ -84,7 +83,7 @@ impl OthelloEngineProtocolServer {
             }
         }
 
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write("ENGINE-PROTOCOL init\n".as_bytes()) {
             // let mut txt = String::new();
@@ -116,7 +115,7 @@ impl OthelloEngineProtocolServer {
             panic!("player1 exit with {es}");
         }
 
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) =
                 toeng.write("ENGINE-PROTOCOL get-version\n".as_bytes()) {
@@ -138,7 +137,7 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn new_position(&mut self) -> Result<(), String> {
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) =
                 toeng.write("ENGINE-PROTOCOL new-position\n".as_bytes()) {
@@ -159,7 +158,7 @@ impl OthelloEngineProtocolServer {
     pub fn midgame_search(&mut self,
             obf : &str, alpha : f32, beta : f32, depth : u8, precision : i8)
             -> Result<String, String> {
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write(
             format!(
@@ -247,7 +246,7 @@ impl OthelloEngineProtocolServer {
         if let Ok(Some(es)) = self.ply1.as_mut().unwrap().try_wait() {
             panic!("player1 exit with {es}");
         }
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
         let cmd = format!(
             "ENGINE-PROTOCOL endgame-search {obf} {alpha} {beta} {depth} {precision}\n");
     // eprintln!("cmd: {cmd}");
@@ -326,7 +325,7 @@ impl OthelloEngineProtocolServer {
     pub fn get_serach_infos(&mut self) {unimplemented!()}
 
     pub fn stop(&mut self) -> Result<(), String> {
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write("ENGINE-PROTOCOL stop\n".as_bytes()) {
             return Err(e.to_string());
@@ -344,7 +343,7 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn empty_hash(&mut self) -> Result<(), String> {
-        let (toeng, fromeng, fromerr) = self.getio()?;
+        let (toeng, fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) =
                 toeng.write("ENGINE-PROTOCOL empty-hash\n".as_bytes()) {
@@ -363,7 +362,7 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn quit(&mut self) -> Result<(), String> {
-        let (toeng, _fromeng, fromerr) = self.getio()?;
+        let (toeng, _fromeng, _fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write("ENGINE-PROTOCOL quit\n".as_bytes()) {
             return Err(e.to_string());

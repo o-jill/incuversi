@@ -1,6 +1,6 @@
 use core::fmt;
 use std::fs::File;
-use std::io::{BufReader, BufRead, Write};
+use std::io::{BufReader, BufRead};
 use std::fmt::{Display, Formatter};
 use std::process::{Child, Command, Stdio};
 
@@ -115,7 +115,7 @@ impl CassioRunner {
                         // println!("{l}");
                         self.cas = String::from(cas.trim());
                     } else if let Some(args_txt) = l.strip_prefix("args:") {
-                        self.args = parse_args_tag(&args_txt)?;
+                        self.args = parse_args_tag(args_txt)?;
                     }
                 },
                 Err(err) => {return Err(err.to_string())}
