@@ -1285,11 +1285,13 @@ impl Incubator {
                     // if let Some(pb) = &pbgrandchild {pb.inc(1);}
                     // data += &format!("{},{score}\n", ban.to_string_short());
                     // eprintln!("{},{score}", ban.to_string_short());
-                    let response = match cassio.endgame_search(&ban.to_obf(), -999f32, 999f32,
+                    let response = match cassio.endgame_search(
+                        &ban.to_obf(), -999f32, 999f32,
                         ban.nblank() as u8 * 2, 0) {
                             Ok(msg) => {msg},
                             Err(e) => {panic!("cassio com error: {e}")},
                         };
+            // eprintln!("{response}");
                     // response:
                     // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
                     // range: "B:{val:.1} <= v <= B:{val:.1}"
