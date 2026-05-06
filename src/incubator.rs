@@ -1236,6 +1236,7 @@ impl Incubator {
                     l.write_all(format!("{path}\n").as_bytes()).unwrap();
                 }
                 if show_path {print!("{path}\r");}
+                if let Some(pb) = &pbchild {pb.set_message(format!("{fname}"));}
                 let mut boards = data_loader::load_mates_all(&path).unwrap();
 
                 data_loader::dedupboards(&mut boards, &mut self.log, show_path);
@@ -1255,6 +1256,7 @@ impl Incubator {
                         ProgressStyle::with_template(
                             "[{elapsed_precise}] {wide_bar} [{eta_precise}] {pos}/{len} {msg}").unwrap()
                         .progress_chars("🥚🐔🐤"));
+                    pb.set_message(format!("{fname}"));
                     Some(pb)
                 } else {
                     None
