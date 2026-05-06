@@ -125,27 +125,35 @@ impl CassioRunner {
     }
 
     fn spawn(&self) -> std::io::Result<Child> {
-        std::env::set_current_dir(&self.curdir).unwrap();
+// println!("args:{:?}", self.args);
+        // std::env::set_current_dir(&self.curdir).unwrap();
         let mut cmd = Command::new(&self.path);
-        cmd.arg(&self.cas)
-            .arg("-eval-file").arg(&self.evfile).args(&self.args)
+        cmd.current_dir(&self.curdir)
+            .arg(&self.cas)
+            // .arg("-eval-file").arg(&self.evfile).args(&self.args)
+            .args(&self.args)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
-            .stderr(Stdio::null());
+            .stderr(Stdio::piped());
+            // .stderr(Stdio::null());
         // println!("cmd:{cmd:?}");
-        cmd.spawn()
+        let ret = cmd.spawn();
+        if let Err(e) = ret {
+            panic!("spawn error: {e}");
+        }
+        ret
     }
 
     pub fn run(&self) -> Result<Child, String> {
         // launch cassio
-        let curdir = std::env::current_dir().unwrap();
+        // let curdir = std::env::current_dir().unwrap();
         match self.spawn() {
             Err(msg) => {
-                std::env::set_current_dir(curdir).unwrap();
+                // std::env::set_current_dir(curdir).unwrap();
                 Err(format!("error running cassio... [{msg}], {self}"))
             },
             Ok(prcs) => {
-                std::env::set_current_dir(curdir).unwrap();
+                // std::env::set_current_dir(curdir).unwrap();
                 Ok(prcs)
             },
         }

@@ -1,14 +1,12 @@
 use super::*;
 use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle, MultiProgress};
-use rayon::join;
 use regex::Regex;
-use std::ptr::read;
-use std::str::FromStr;
 use std::io::{BufRead, BufReader, BufWriter};
 use std::fs::OpenOptions;
 use std::sync::mpsc;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::thread::sleep;
 
 pub struct Incubator {
     kifudir : Vec<String>,
@@ -416,7 +414,8 @@ impl Incubator {
                 self.run_shorten()
             },
             argument::Mode::Validate => {
-                self.run_validate()
+                // self.run_validate()
+                self.run_validate_cassio()
             },
             _ => {
                 Ok(())
@@ -1217,17 +1216,18 @@ impl Incubator {
             } else {
                 None
             };
-            let cas = match cassiorunner::CassioRunner::from_config(
-                    &std::path::PathBuf::from(self.ruversi_config.clone())) {
-                        Ok(cas) => {cas},
-                        Err(e) => {
-                            panic!("failed to run cassio program: {e}")
-                        },
-                        };
-            let mut cassio =
-                cassio::OthelloEngineProtocolServer::new1(cas.run().unwrap());
-            // cassio.setturn(bitboard::SENTE);
-            cassio.init().unwrap();
+            // let cas = match cassiorunner::CassioRunner::from_config(
+            //         &std::path::PathBuf::from(self.ruversi_config.clone())) {
+            //             Ok(cas) => {cas},
+            //             Err(e) => {
+            //                 panic!("failed to run cassio program: {e}")
+            //             },
+            //             };
+            // let mut cassio =
+            //     cassio::OthelloEngineProtocolServer::new1(cas.run().unwrap());
+            // cassio.setturn(bitboard::SENTE);  // choose player1
+            // cassio.init().unwrap();
+            // println!("program:{}", cassio.get_version().unwrap());
             for fname in files {
                 let path = format!("{d}/{fname}");
                 {
@@ -1259,7 +1259,27 @@ impl Incubator {
                 } else {
                     None
                 };
-                for (ban, _, _, score) in boards {
+                // for (ban, _, _, score) in boards {
+                let chunk_size = 200;
+                for brds in boards.chunks(chunk_size) {
+            let cas = match cassiorunner::CassioRunner::from_config(
+                    &std::path::PathBuf::from(self.ruversi_config.clone())) {
+                        Ok(cas) => {cas},
+                        Err(e) => {
+                            panic!("failed to run cassio program: {e}")
+                        },
+                        };
+            let mut cassio =
+                cassio::OthelloEngineProtocolServer::new1(cas.run().unwrap());
+            cassio.setturn(bitboard::SENTE);  // choose player1
+            cassio.init().unwrap();
+            // println!("program:{}", cassio.get_version().unwrap());
+                {
+                    let shared = std::sync::Mutex::new(&self.log);
+                    let mut l = shared.lock().unwrap();
+                    l.write_all(format!("program:{}", cassio.get_version().unwrap()).as_bytes()).unwrap();
+                }
+                    for (ban, _, _, _score) in brds {
                     // if let Some(pb) = &pbgrandchild {pb.inc(1);}
                     // data += &format!("{},{score}\n", ban.to_string_short());
                     // eprintln!("{},{score}", ban.to_string_short());
@@ -1272,7 +1292,8 @@ impl Incubator {
                     // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
                     // range: "B:{val:.1} <= v <= B:{val:.1}"
                     // range: "W:{val:.1} <= v <= W:{val:.1}"
-                    let valptn = Regex::new("[BW]:([0-9.])").unwrap();
+                    let valptn = Regex::new("[BW]:(-?[0-9.])").unwrap();
+                    // eprintln!("{response}");
                     let cap = valptn.captures(&response).unwrap();
                     let score_txt = cap.get(1).unwrap().as_str();
                     let new_score = score_txt.parse::<f32>().unwrap();
@@ -1283,7 +1304,11 @@ impl Incubator {
                     let data = format!("{},{new_score}", ban.to_string_short());
                     tx.send(data).unwrap();
                     if let Some(pb) = &pbgrandchild {pb.inc(1);}
+        // sleep(std::time::Duration::from_millis(1));
                 }
+                cassio.quit().unwrap();
+                }
+                // }
                 if let Some(pb) = &pbchild {pb.inc(1);}  // 3
 
                 tx.send(String::new()).unwrap();  // send quit

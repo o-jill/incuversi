@@ -1,6 +1,7 @@
 use super::*;
-use std::io::{BufRead, BufReader};
-use std::process::{Child, ChildStdin, ChildStdout};
+use std::io::{BufRead, BufReader, Read};
+use std::os::unix::thread;
+use std::process::{Child, ChildStderr, ChildStdin, ChildStdout};
 use std::thread::sleep;
 use std::time::Duration;
 
@@ -46,8 +47,17 @@ impl OthelloEngineProtocolServer {
         })
     }
 
-    fn getio(&mut self) -> Result<(&mut ChildStdin, &mut ChildStdout), String> {
+    fn getio(&mut self)
+        -> Result<(&mut ChildStdin, &mut ChildStdout, &mut ChildStderr), String> {
         let ch = self.selectplayer()?;
+        let fromerr = if let Some(engerr) = ch.stderr.as_mut() {
+            engerr
+        } else {
+            return Err("failed to get error pipe..".to_string());
+        };
+        // let mut txt = String::new();
+        // fromerr.read_to_string(&mut txt).unwrap();
+        // println!("stderr:{txt}");
         let toeng = if let Some(toeng) = ch.stdin.as_mut() {
             toeng
         } else {
@@ -58,13 +68,28 @@ impl OthelloEngineProtocolServer {
         } else {
             return Err("failed  to get from-engine pipe..".to_string());
         };
-        Ok((toeng, fromeng))
+        Ok((toeng, fromeng, fromerr))
     }
 
     pub fn init(&mut self) -> Result<(), String> {
-        let (toeng, fromeng) = self.getio()?;
+        match self.ply1.as_mut().unwrap().try_wait() {
+            Ok(Some(es)) => {
+                return Err(format!("player1 exit with {es}"));
+            },
+            Ok(_) => {
+                // eprintln!("alive...")
+            },
+            Err(e) => {
+                return Err(format!("Error:{e} in init()"))
+            }
+        }
+
+        let (toeng, fromeng, fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write("ENGINE-PROTOCOL init\n".as_bytes()) {
+            // let mut txt = String::new();
+            // fromerr.read_to_string(&mut txt).unwrap();
+            // println!("stderr:{txt}");
             return Err(e.to_string());
         }
 
@@ -80,13 +105,18 @@ impl OthelloEngineProtocolServer {
             if !buf.is_empty() {
                 break;
             }
-            println!("i:{i}");
+            print!("i:{i} buf:{buf:?}");
+            sleep(Duration::from_millis(1));
         }
         Err(format!("unknown response ii: \"{buf}\""))
     }
 
     pub fn get_version(&mut self) -> Result<String, String> {
-        let (toeng, fromeng) = self.getio()?;
+        if let Ok(Some(es)) = self.ply1.as_mut().unwrap().try_wait() {
+            panic!("player1 exit with {es}");
+        }
+
+        let (toeng, fromeng, fromerr) = self.getio()?;
 
         if let Err(e) =
                 toeng.write("ENGINE-PROTOCOL get-version\n".as_bytes()) {
@@ -108,7 +138,7 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn new_position(&mut self) -> Result<(), String> {
-        let (toeng, fromeng) = self.getio()?;
+        let (toeng, fromeng, fromerr) = self.getio()?;
 
         if let Err(e) =
                 toeng.write("ENGINE-PROTOCOL new-position\n".as_bytes()) {
@@ -129,7 +159,7 @@ impl OthelloEngineProtocolServer {
     pub fn midgame_search(&mut self,
             obf : &str, alpha : f32, beta : f32, depth : u8, precision : i8)
             -> Result<String, String> {
-        let (toeng, fromeng) = self.getio()?;
+        let (toeng, fromeng, fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write(
             format!(
@@ -211,37 +241,92 @@ impl OthelloEngineProtocolServer {
     //     }
 
     // }
-
     pub fn endgame_search(&mut self,
             obf : &str, alpha : f32, beta : f32, depth : u8, precision : i8)
             -> Result<String, String> {
-        let (toeng, fromeng) = self.getio()?;
-
+        if let Ok(Some(es)) = self.ply1.as_mut().unwrap().try_wait() {
+            panic!("player1 exit with {es}");
+        }
+        let (toeng, fromeng, fromerr) = self.getio()?;
+        let cmd = format!(
+            "ENGINE-PROTOCOL endgame-search {obf} {alpha} {beta} {depth} {precision}\n");
+    // eprintln!("cmd: {cmd}");
         if let Err(e) = toeng.write(
-            format!(
-                "ENGINE-PROTOCOL endgame-search {obf} {alpha} {beta} {depth} {precision}\n"
-            ).as_bytes()) {
+            cmd.as_bytes()) {
             return Err(e.to_string());
         }
 
-        sleep(Duration::from_millis(1));
-
-        let mut bufreader = BufReader::new(fromeng);
+        // let dur = Duration::from_millis(50);
+        // let dur = Duration::from_millis(20);
+        // let dur = Duration::from_millis(10);
+        let dur = Duration::from_millis(1);
+        sleep(dur);
+        // eprint!("sleep");
+// ENGINE-PROTOCOL endgame-search OOOOOO-OOOOOO-OOOOOOOOOOOOOOOOOOOOOOOOOOOXOOOOOOOOOOOOOOOOOOOOOO X -999 999 4 0
+// ENGINE-PROTOCOL endgame-search OOOOOO-OOOOOO-OOOOOOOOOOOOOOOOOOOOOOOOOOOXOOOOOOOOOOOOOOOOOOOOOO X -999 999 4 0
+        // read w/ a thread to imitate async reading. 
+        // let (tx, rx) = std::sync::mpsc::channel::<String>();
+        // let thread_read = std::thread::spawn(|| {
+        //     loop {
+        //         let buf = fromeng.take(300);
+        //     }
+        // });
+        let no_bufreader = false;
+        // let no_bufreader = true;
+    if no_bufreader {
         let mut buf = String::default();
-        bufreader.read_line(&mut buf).unwrap();
+        let mut ba = [0u8 ; 1024];
+        for _i in 0..1000 {
+            let sz = match fromeng.read(&mut ba) {
+                Ok(s) => s,
+                Err(err) => {
+                    panic!("err:{err} w/ {ba:?}");
+                }
+            };
+            let line = unsafe {
+                String::from_utf8_unchecked(ba[..sz].to_vec())
+            };
+            // fromeng.read_to_string(&mut line).unwrap();
+            buf += &line.replace("\r\n", "\n");
+// eprintln!("l:{line:?}");
+            let eng = buf.split("\n").collect::<Vec<_>>();
+// eprintln!("l:{:?}", eng[1]);
+            let ready = "ready.";
+            if eng[1] == ready {
+            // if eng[1].starts_with(ready) {
+// eprintln!("ret:{}", eng[0]);
+                return Ok(eng[0].to_string());
+            }
+            sleep(dur);
+        }
+        Err(format!("unknown response ms: \"{buf}\""))
+    } else {
+        let mut bufreader = BufReader::new(fromeng);
+        // eprintln!("BufReader");
+        // read result
+        let mut buf = String::default();
+        // eprintln!("read_line");
+        if let Err(e) = bufreader.read_line(&mut buf) {
+            panic!("err:{e} for read_line.");
+        }
         let ret = buf.trim().to_string();
+        // eprintln!("readline {ret}");
+
+        // read "ready."
         buf.clear();
+        // eprintln!("read_line 2");
         bufreader.read_line(&mut buf).unwrap();
         if buf.replace("\r\n", "\n") == READY {
-            return Ok(ret)
+            return Ok(ret);
         }
         Err(format!("unknown response ms: \"{buf}\" \"{ret}\""))
+    }
     }
 
     pub fn get_serach_infos(&mut self) {unimplemented!()}
 
     pub fn stop(&mut self) -> Result<(), String> {
-        let (toeng, fromeng) = self.getio()?;
+        let (toeng, fromeng, fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write("ENGINE-PROTOCOL stop\n".as_bytes()) {
             return Err(e.to_string());
@@ -259,7 +344,7 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn empty_hash(&mut self) -> Result<(), String> {
-        let (toeng, fromeng) = self.getio()?;
+        let (toeng, fromeng, fromerr) = self.getio()?;
 
         if let Err(e) =
                 toeng.write("ENGINE-PROTOCOL empty-hash\n".as_bytes()) {
@@ -278,7 +363,7 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn quit(&mut self) -> Result<(), String> {
-        let (toeng, _fromeng) = self.getio()?;
+        let (toeng, _fromeng, fromerr) = self.getio()?;
 
         if let Err(e) = toeng.write("ENGINE-PROTOCOL quit\n".as_bytes()) {
             return Err(e.to_string());
