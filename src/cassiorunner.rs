@@ -91,10 +91,7 @@ impl CassioRunner {
     /// COMMAs between `"`s are not be ignored yet...
     /// "a,b" will be `"a` and `b"`...
     pub fn read(&mut self, path : &std::path::PathBuf) -> Result<(), String> {
-        let file = File::open(path);
-        if file.is_err() {return Err(file.err().unwrap().to_string());}
-
-        let file = file.unwrap();
+        let file = File::open(path).map_err(|e| e.to_string())?;
         let lines = BufReader::new(file);
         for line in lines.lines() {
             match line {
