@@ -1201,7 +1201,7 @@ impl Incubator {
         // let outdir = self.outdir.clone();
         if let Some(pb) = &pbtop {pb.inc(1);}  // 1
 
-        let valptn = Regex::new("[BW]:(-?[0-9.]+)").unwrap();
+        let valptn = Regex::new("[BW](-?[0-9.]+)").unwrap();
         for d in self.kifudir.iter() {
             let files = data_loader::findfiles(&format!("./{d}"));
             if let Some(pb) = &pbtop {pb.inc(1);}  // 2n
@@ -1284,8 +1284,8 @@ impl Incubator {
                     // eprintln!("{response}");
                     // response:
                     // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
-                    // range: "B:{val:.1} <= v <= B:{val:.1}"
-                    // range: "W:{val:.1} <= v <= W:{val:.1}"
+                    // range: "B{val:.2} <= v <= B{val:.2}"
+                    // range: "W{val:.2} <= v <= W{val:.2}"
                     // eprintln!("{response}");
                     let cap = valptn.captures(&response).unwrap();
                     let score_txt = cap.get(1).unwrap().as_str();
