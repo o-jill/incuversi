@@ -24,6 +24,7 @@ impl OthelloEngineProtocolServer {
         }
     }
 
+    #[allow(dead_code)]
     pub fn new2(ch1 : Child, ch2 : Child) -> Self {
         OthelloEngineProtocolServer {
             ply1 : Some(ch1),
@@ -136,6 +137,7 @@ impl OthelloEngineProtocolServer {
         Err(format!("unknown response gv: \"{buf}\" \"{ret}\""))
     }
 
+    #[allow(dead_code)]
     pub fn new_position(&mut self) -> Result<(), String> {
         let (toeng, fromeng, _fromerr) = self.getio()?;
 
@@ -155,6 +157,7 @@ impl OthelloEngineProtocolServer {
         Err(format!("unknown response np: \"{buf}\""))
     }
 
+    #[allow(dead_code)]
     pub fn midgame_search(&mut self,
             obf : &str, alpha : f32, beta : f32, depth : u8, precision : i8)
             -> Result<String, String> {
@@ -322,8 +325,10 @@ impl OthelloEngineProtocolServer {
     }
     }
 
-    pub fn get_serach_infos(&mut self) {unimplemented!()}
+    #[allow(dead_code)]
+    pub fn get_search_infos(&mut self) {unimplemented!()}
 
+    #[allow(dead_code)]
     pub fn stop(&mut self) -> Result<(), String> {
         let (toeng, fromeng, _fromerr) = self.getio()?;
 
@@ -342,6 +347,7 @@ impl OthelloEngineProtocolServer {
         Err(format!("unknown response sp: \"{buf}\""))
     }
 
+    #[allow(dead_code)]
     pub fn empty_hash(&mut self) -> Result<(), String> {
         let (toeng, fromeng, _fromerr) = self.getio()?;
 
