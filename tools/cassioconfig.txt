@@ -1,0 +1,8 @@
+# ruversi configuration
+curdir: ../ruversi
+path: ./target/release/ruversi
+evfile: ./data/evaltable.txt
+cas: --oep
+args: --thinkall, --ev1, data/evaltable.txt
+# args: --thinkall, --ev1, ../../data/evaltable.txt
+# args: --thinkall
