@@ -97,8 +97,15 @@ fn read_mate_file_all(buf : impl std::io::BufRead)
                 if l.len() < 7 || l.starts_with("#") {continue;}
                 // rfen,score
                 let elem : Vec<&str> = l.split(",").collect();
-                let ban = bitboard::BitBoard::try_from(elem[0])?;
-
+                // let ban = bitboard::BitBoard::try_from(elem[0])?;
+                // let ban = bitboard::BitBoard::try_from(elem[0]).map_err(|e| e + elem[0])?;
+                let ban = match bitboard::BitBoard::try_from(elem[0]) {
+                    Err(e) => {
+                        eprintln!("{e} {}", elem[0]);
+                        continue;
+                    },
+                    Ok(b) => b,
+                };
                 let (b, w) = ban.fixedstones();
                 let score = match elem[1].parse::<i8>() {
                     Err(msg) => {return Err(format!("error: parse score : {msg}"));},
