@@ -1201,7 +1201,8 @@ impl Incubator {
         // let outdir = self.outdir.clone();
         if let Some(pb) = &pbtop {pb.inc(1);}  // 1
 
-        let valptn = Regex::new("[BW](-?[0-9.]+)").unwrap();
+        // let valptn = Regex::new("[BW](-?[0-9.]+)").unwrap();
+        let valptn = Regex::new("[BW]([-+]?[0-9.]+)").unwrap();
         for d in self.kifudir.iter() {
             let files = data_loader::findfiles(&format!("./{d}"));
             if let Some(pb) = &pbtop {pb.inc(1);}  // 2n
@@ -1252,7 +1253,7 @@ impl Incubator {
                     None
                 };
                 // for (ban, _, _, score) in boards {
-                let chunk_size = 200;
+                let chunk_size = 2000;
                 for brds in boards.chunks(chunk_size) {
                     let cas = match cassiorunner::CassioRunner::from_config(
                     &std::path::PathBuf::from(self.ruversi_config.clone())) {
@@ -1272,34 +1273,34 @@ impl Incubator {
                         l.write_all(format!("program:{}", cassio.get_version().unwrap()).as_bytes()).unwrap();
                     }
                     for (ban, _, _, _score) in brds {
-                    // if let Some(pb) = &pbgrandchild {pb.inc(1);}
-                    // data += &format!("{},{score}\n", ban.to_string_short());
-                    // eprintln!("{},{score}", ban.to_string_short());
-                    let response = match cassio.endgame_search(
-                        &ban.to_obf(), -999f32, 999f32,
-                        ban.nblank() as u8 * 2, 0) {
-                            Ok(msg) => {msg},
-                            Err(e) => {panic!("cassio com error: {e}")},
-                        };
-                    // eprintln!("{response}");
-                    // response:
-                    // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
-                    // range: "B{val:.2} <= v <= B{val:.2}"
-                    // range: "W{val:.2} <= v <= W{val:.2}"
-                    // eprintln!("{response}");
-                    let cap = valptn.captures(&response).unwrap();
-                    let score_txt = cap.get(1).unwrap().as_str();
-                    let new_score = score_txt.parse::<f32>().unwrap();
-                    if new_score - new_score.floor() > 1e-5 {
-                        panic!("new_score:{new_score} is not an integer!");
-                    }
-                    let new_score = new_score as i8;
-                    let data = format!("{},{new_score}", ban.to_string_short());
-                    tx.send(data).unwrap();
-                    if let Some(pb) = &pbgrandchild {pb.inc(1);}
-                    // sleep(std::time::Duration::from_millis(1));
-                }
-                cassio.quit().unwrap();
+                        // if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                        // data += &format!("{},{score}\n", ban.to_string_short());
+                        // eprintln!("{},{score}", ban.to_string_short());
+                        let response = match cassio.endgame_search(
+                            &ban.to_obf(), -999f32, 999f32,
+                            ban.nblank() as u8 * 3, 0) {
+                                Ok(msg) => {msg},
+                                Err(e) => {panic!("cassio com error: {e}")},
+                            };
+                        // eprintln!("{response}");
+                        // response:
+                        // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
+                        // range: "B{val:.2} <= v <= B{val:.2}"
+                        // range: "W{val:.2} <= v <= W{val:.2}"
+                        // eprintln!("resp:{response}");
+                        let cap = valptn.captures(&response).unwrap();
+                        let score_txt = cap.get(1).unwrap().as_str();
+                        let new_score = score_txt.parse::<f32>().unwrap();
+                        if new_score - new_score.floor() > 1e-5 {
+                            panic!("new_score:{new_score} is not an integer!");
+                        }
+                        let new_score = new_score as i8;
+                        let data = format!("{},{new_score}", ban.to_string_short());
+                        tx.send(data).unwrap();
+                        if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                        // sleep(std::time::Duration::from_millis(1));
+                     }
+                    cassio.quit().unwrap();
                 }
                 // }
                 if let Some(pb) = &pbchild {pb.inc(1);}  // 3
