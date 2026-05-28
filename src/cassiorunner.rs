@@ -121,8 +121,32 @@ impl CassioRunner {
         Ok(())
     }
 
+    #[cfg(target_os = "windows")]
     fn spawn(&self) -> std::io::Result<Child> {
-// println!("args:{:?}", self.args);
+        // println!("args:{:?}", self.args);
+        let curdir = std::env::current_dir()?;
+        std::env::set_current_dir(&self.curdir).unwrap();
+        let mut cmd = Command::new(&self.path);
+        cmd.arg(&self.cas)
+            // .arg("-eval-file").arg(&self.evfile).args(&self.args)
+            .args(&self.args)
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped());
+            // .stderr(Stdio::null());
+        // println!("cmd:{cmd:?}");
+        let ret = cmd.spawn();
+        if let Err(e) = ret {
+            panic!("spawn error: {e}");
+        }
+        std::env::set_current_dir(curdir)?;
+        ret
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    fn spawn(&self) -> std::io::Result<Child> {
+        // println!("args:{:?}", self.args);
+        // let curdir = std::env::current_dir()?;
         // std::env::set_current_dir(&self.curdir).unwrap();
         let mut cmd = Command::new(&self.path);
         cmd.current_dir(&self.curdir)
