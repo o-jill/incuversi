@@ -1202,7 +1202,7 @@ impl Incubator {
         if let Some(pb) = &pbtop {pb.inc(1);}  // 1
 
         // let valptn = Regex::new("[BW](-?[0-9.]+)").unwrap();
-        let valptn = Regex::new("[BW]([-+]?[0-9.]+)").unwrap();
+        let valptn = Regex::new(", [BW]([-+]?[0-9.]+)").unwrap();
         for d in self.kifudir.iter() {
             let files = data_loader::findfiles(&format!("./{d}"));
             if let Some(pb) = &pbtop {pb.inc(1);}  // 2n
