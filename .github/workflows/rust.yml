@@ -27,20 +27,33 @@ jobs:
     - name: prepare ruversi
       run: tools/prepare.sh
       continue-on-error: true # --helpが指定されててエラーになるので無視する
-    - name: run w/o progressbar
+    # - name: run w/o progressbar
+    #   run: |
+    #     cargo run --release -- kifu --kifudir kifu --log "extracting<DATETIME>.txt" --mate 5 --ru-config tools/ruversiconfig.txt --no-progressbar
+    - name: prepare for spread command
       run: |
-        cargo run --release -- kifu --kifudir kifu --log "extracting<DATETIME>.txt" --mate 5 --ru-config tools/ruversiconfig.txt --no-progressbar
-    - name: prepare for mate command
-      run: |
-        mkdir mates
-        cp mate*.txt mates/
+        mkdir spread
+        mkdir shorten
+        mkdir validated
     - name: run w/ progressbar
       run: |
-        cargo run --release -- mate --kifudir mates --log "extracting<DATETIME>.txt" --mate 6 --ru-config tools/ruversiconfig.txt
+        cargo run --release -- spread --kifudir kifu -o spread --log "spread<DATETIME>.txt" --mate 11 --ru-config tools/ruversiconfig.txt
+        cargo run --release -- shorten --kifudir spread -o shorten --log "shorten<DATETIME>.txt"
+        cargo run --release -- validate --kifudir shorten -o validate --log "validate<DATETIME>.txt" --ru-config tools/ruversiconfig.txt
+    # - name: prepare for mate command
+    #   run: |
+    #     mkdir mates
+    #     cp mate*.txt mates/
+    # - name: run w/ progressbar
+    #   run: |
+    #     cargo run --release -- mate --kifudir mates --log "extracting<DATETIME>.txt" --mate 6 --ru-config tools/ruversiconfig.txt
     - name: prepare for upload
       run: |
         mkdir upld
         cp *.txt upld/
+        cp spread upld/
+        cp shorten upld/
+        cp validated upld/
     - name: Set current datetime as env variable
       env:
         TZ: 'Asia/Tokyo' # タイムゾーン指定
