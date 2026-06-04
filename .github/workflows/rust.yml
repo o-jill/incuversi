@@ -37,9 +37,9 @@ jobs:
         mkdir validated
     - name: run w/ progressbar
       run: |
-        cargo run --release -- spread --kifudir kifu -o spread --log "spread<DATETIME>.txt" --mate 11 --ru-config tools/ruversiconfig.txt
+        cargo run --release -- spread --kifudir kifu -o spread --log "spread<DATETIME>.txt" --mate 11 --ru-config tools/cassioconfig.txt
         cargo run --release -- shorten --kifudir spread -o shorten --log "shorten<DATETIME>.txt"
-        cargo run --release -- validate --kifudir shorten -o validate --log "validate<DATETIME>.txt" --ru-config tools/ruversiconfig.txt
+        cargo run --release -- validate --kifudir shorten -o validate --log "validate<DATETIME>.txt" --ru-config tools/cassioconfig.txt
     # - name: prepare for mate command
     #   run: |
     #     mkdir mates
