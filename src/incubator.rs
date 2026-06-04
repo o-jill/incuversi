@@ -1002,7 +1002,9 @@ impl Incubator {
                 None
             };
             let files = data_loader::findfiles(&format!("./{d}"));
-            if let Some(pb) = &pbchild {pb.set_length(files.len() as u64 + 4);}
+            if let Some(pb) = &pbchild {
+                pb.set_length(files.len() as u64 * 2);
+            }
             for fname in files {
                 let path = format!("{d}/{fname}");
                 {
@@ -1036,14 +1038,7 @@ impl Incubator {
                 tx.send(String::new()).unwrap();  // send quit
                 store_thread.join().unwrap();
             }
-            if let Some(pb) = &pbchild {pb.inc(1);}  // 1
-
-            // if let Some(pb) = &pbgrandchild {
-            //     pb.finish();
-            //     self.multibar.remove(pb);
-            // }
             if let Some(pb) = &pbchild {
-                pb.inc(1);  // 4
                 pb.finish();
                 // self.multibar.remove(pb);
             }
