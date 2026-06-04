@@ -1208,7 +1208,7 @@ impl Incubator {
             if let Some(pb) = &pbtop {pb.inc(1);}  // 2n
 
             let pbchild = if self.show_progressbar {
-                let pb = self.multibar.add(ProgressBar::new(files.iter().len() as u64));
+                let pb = self.multibar.add(ProgressBar::new(files.len() as u64 * 2));
                     // load, dedup, extract, dedup, augmentation, dedup, store
                 pb.set_style(
                     ProgressStyle::with_template(
