@@ -724,7 +724,7 @@ impl Incubator {
     }
 
     #[allow(dead_code)]
-    fn dedup_rfen(&self, path : &str, pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
+    fn dedup_rfen(&self, path : &str, _pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
         let path_aug = path.to_string() + ".Aug";
         let path_uniq = path.to_string() + ".Uniq";
 
@@ -788,9 +788,9 @@ impl Incubator {
                 // find a same line in Aug
                 if Self::find_line_any(&target, &path_uniq) {continue;}
             }
-            let mut finB = OpenOptions::new()
-                    .create(true).append(true).open(&path_uniq)?;
-            finB.write_all((line + "\n").as_bytes())?;
+            OpenOptions::new()
+                    .create(true).append(true).open(&path_uniq)?
+                    .write_all((line + "\n").as_bytes())?;
         }
 
         if let Some(pb) = &pbar {
@@ -800,7 +800,7 @@ impl Incubator {
         Ok(())
     }
 
-    fn dedup_rfen_in_mem(&self, path : &str, pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
+    fn dedup_rfen_in_mem(&self, path : &str, _pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
         let path_uniq = path.to_string() + ".Uniq";
         let path_aug = path.to_string() + ".Aug";
         // let mut filtered = Vec::with_capacity(1000000);
@@ -949,11 +949,11 @@ impl Incubator {
             //     panic!("if !filtered.contains(&line)");
             // }
         }
-        // let mut finB = OpenOptions::new()
-        //         .create(true).append(true).open(&path_uniq)?;
-        // // finB.write_all((filtered..join("\n") + "\n").as_bytes())?;
-        // finB.write_all((filtered.into_iter().collect::<Vec<String>>()
-        //         .join("\n") + "\n").as_bytes())?;
+        // OpenOptions::new()
+        //         .create(true).append(true).open(&path_uniq)?
+        //         // .write_all((filtered..join("\n") + "\n").as_bytes())?;
+        //         .write_all((filtered.into_iter().collect::<Vec<String>>()
+        //             .join("\n") + "\n").as_bytes())?;
         tx.send(String::new()).unwrap();
         tx2.send(String::new()).unwrap();
         file_store.join().unwrap();
