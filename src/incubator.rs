@@ -1278,7 +1278,7 @@ impl Incubator {
                         // eprintln!("{},{score}", ban.to_string_short());
                         let response = match cassio.endgame_search(
                             &ban.to_obf(), -999f32, 999f32,
-                            ban.nblank() as u8 * 3, 0) {
+                            ban.nblank() as u8 * 2, 0) {
                                 Ok(msg) => {msg},
                                 Err(e) => {panic!("cassio com error: {e}")},
                             };
