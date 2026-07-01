@@ -244,14 +244,14 @@ impl OthelloEngineProtocolServer {
 
     // }
     pub fn endgame_search(&mut self,
-            obf : &str, alpha : f32, beta : f32, depth : u8, precision : i8)
+            obf : &str, alpha : f32, beta : f32, precision : i8)
             -> Result<String, String> {
         if let Ok(Some(es)) = self.ply1.as_mut().unwrap().try_wait() {
             panic!("player1 exit with {es}");
         }
         let (toeng, fromeng, _fromerr) = self.getio()?;
         let cmd = format!(
-            "ENGINE-PROTOCOL endgame-search {obf} {alpha} {beta} {depth} {precision}\n");
+            "ENGINE-PROTOCOL endgame-search {obf} {alpha} {beta} {precision}\n");
     // eprintln!("cmd: {cmd}");
         if let Err(e) = toeng.write_all(
             cmd.as_bytes()) {
