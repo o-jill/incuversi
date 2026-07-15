@@ -6,9 +6,12 @@ pub struct Arg {
     /// mode
     #[command(subcommand)]
     pub md : Mode,
-    /// kifu directory
+    /// kifu directories
     #[arg(long, global = true, value_delimiter=',')]
     pub kifudir : Vec<String>,
+    /// kifu files
+    #[arg(long, global = true, value_delimiter=',')]
+    pub kifufile : Vec<String>,
     /// show progressbar
     #[arg(long, global = true, default_value_t = false)]
     pub no_progressbar : bool,

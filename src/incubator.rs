@@ -9,6 +9,7 @@ use std::path::PathBuf;
 
 pub struct Incubator {
     kifudir : Vec<String>,
+    kifufile : Vec<String>,
     log : std::fs::File,
     mate : u32,
     // matefiles : String,
@@ -49,6 +50,7 @@ impl From<argument::Arg> for Incubator {
 
         let mode = arg.md;
         let kifudir = arg.kifudir;
+        let kifufile = arg.kifufile;
         let outdir = arg.output.unwrap_or(".".to_string());
         // let matefiles = arg.mate_file.unwrap_or(String::new()).clone();
         let ruversi_config = arg.ru_config.unwrap_or_default();
@@ -57,6 +59,7 @@ impl From<argument::Arg> for Incubator {
 
         Self {
             kifudir,
+            kifufile,
             log,
             mate,
             // matefiles,
@@ -495,7 +498,8 @@ impl Incubator {
 
         let pbtop = if self.show_progressbar {
             let pb = self.multibar.add(
-                ProgressBar::new(self.kifudir.len() as u64 + 1));
+                ProgressBar::new(
+                    (self.kifudir.len() + self.kifufile.len() + 1) as u64));
             Some(pb)
         } else {
             None
@@ -581,6 +585,78 @@ impl Incubator {
             }
             if let Some(pb) = &pbchild {
                 pb.inc(1);  // 7
+                pb.finish();
+                // self.multibar.remove(pb);
+            }
+            if let Some(pb ) = &pbtop {pb.inc(1);}
+        }
+        for f in self.kifufile.iter() {
+            let pbchild = if self.show_progressbar {
+                let pb = self.multibar.add(ProgressBar::new(4));
+                    // load, dedup, extract, dedup, augmentation, dedup, store
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}]{wide_bar}{pos}/{len} {msg}").unwrap()
+                    .progress_chars("📘📖📙"));
+                pb.set_message("loading kifu...");
+                Some(pb)
+            } else {
+                None
+            };
+            let boards =
+                data_loader::load_kifu(f, self.mate, &mut self.log, show_path);
+            if let Some(pb) = &pbchild {
+                pb.set_message(f.to_string());
+                pb.inc(1);
+            }  // 1
+
+            // no dedup
+
+            let (tx, rx) = std::sync::mpsc::channel::<String>();
+            let outdir = outdir.clone();
+            let store_thread = std::thread::spawn(move || {
+                Self::store_rfen_thread(rx, &outdir, "spread");
+            });
+            if let Some(pb) = &pbchild {pb.inc(1);}  // 2
+
+            // ruversiに展開してもらう
+            let pbgrandchild = if self.show_progressbar {
+                let pb = self.multibar.add(
+                ProgressBar::new(boards.len() as u64));
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}] {wide_bar} [{eta_precise}] {pos}/{len} {msg}").unwrap()
+                    .progress_chars("🥚🐔🐤"));
+                Some(pb)
+            } else {
+                None
+            };
+            let mut rr = ruversirunner::RuversiRunner::from_config(
+                &std::path::PathBuf::from(
+                    self.ruversi_config.clone())).unwrap();
+            rr.set_verbose(self.verbose);
+            for ban in boards.iter() {
+                let mates = match rr.run_all_children(&ban.to_string()) {
+                    Err(msg) => {panic!("{msg}")},
+                    Ok(ban) => {
+                        if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                        ban
+                    },
+                };
+
+                let data = mates.join("\n");
+                if !data.is_empty() {tx.send(data).unwrap();}
+            }
+            if let Some(pb) = &pbchild {pb.inc(1);}  // 3
+
+            tx.send(String::new()).unwrap();  // send quit
+            store_thread.join().unwrap();
+            if let Some(pb) = &pbgrandchild {
+                pb.finish();
+                self.multibar.remove(pb);
+            }
+            if let Some(pb) = &pbchild {
+                pb.inc(1);  // 4
                 pb.finish();
                 // self.multibar.remove(pb);
             }
