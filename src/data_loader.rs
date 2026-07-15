@@ -24,6 +24,36 @@ pub fn findfiles(kifupath : &str) -> Vec<String> {
     files
 }
 
+pub fn load_kifu(f : &str, mate : u32,
+        log : &mut std::fs::File, show_path : bool)
+        -> Vec<bitboard::BitBoard> {
+    // let sta = std::time::Instant::now();
+    {
+        log.write_all(format!("loading from {f}\n").as_bytes()).unwrap();
+        if show_path {print!("{f}\r");}
+    }
+    let content = std::fs::read_to_string(f).unwrap();
+    let boards =
+        content.split('\n').filter_map(|line| {
+            let ban = match bitboard::BitBoard::try_from(line) {
+                Ok(b) => {b},
+                Err(e) => {
+                    eprintln!("read rfen error: {e} \"{line}\"");
+                    return None;
+                },
+            };
+            if ban.nblank() == mate {
+                Some(ban)
+            } else {
+                None
+            }
+        }).collect::<Vec<bitboard::BitBoard>>();
+
+    if show_path {println!();}
+    // println!("{}usec",sta.elapsed().as_micros());
+    boards
+}
+
 pub fn loadkifu_for_mate(files : &[String], d : &str, mate : u32,
         log : &mut std::fs::File, show_path : bool)
         -> Vec<(bitboard::BitBoard, i8, i8, i8)> {
@@ -97,8 +127,15 @@ fn read_mate_file_all(buf : impl std::io::BufRead)
                 if l.len() < 7 || l.starts_with("#") {continue;}
                 // rfen,score
                 let elem : Vec<&str> = l.split(",").collect();
-                let ban = bitboard::BitBoard::try_from(elem[0])?;
-
+                // let ban = bitboard::BitBoard::try_from(elem[0])?;
+                // let ban = bitboard::BitBoard::try_from(elem[0]).map_err(|e| e + elem[0])?;
+                let ban = match bitboard::BitBoard::try_from(elem[0]) {
+                    Err(e) => {
+                        eprintln!("{e} {}", elem[0]);
+                        continue;
+                    },
+                    Ok(b) => b,
+                };
                 let (b, w) = ban.fixedstones();
                 let score = match elem[1].parse::<i8>() {
                     Err(msg) => {return Err(format!("error: parse score : {msg}"));},

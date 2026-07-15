@@ -1,6 +1,7 @@
 use super::*;
 use chrono::Utc;
 use indicatif::{ProgressBar, ProgressStyle, MultiProgress};
+use regex::Regex;
 use std::io::{BufRead, BufReader};
 use std::fs::OpenOptions;
 use std::sync::mpsc;
@@ -8,6 +9,7 @@ use std::path::PathBuf;
 
 pub struct Incubator {
     kifudir : Vec<String>,
+    kifufile : Vec<String>,
     log : std::fs::File,
     mate : u32,
     // matefiles : String,
@@ -48,6 +50,7 @@ impl From<argument::Arg> for Incubator {
 
         let mode = arg.md;
         let kifudir = arg.kifudir;
+        let kifufile = arg.kifufile;
         let outdir = arg.output.unwrap_or(".".to_string());
         // let matefiles = arg.mate_file.unwrap_or(String::new()).clone();
         let ruversi_config = arg.ru_config.unwrap_or_default();
@@ -56,6 +59,7 @@ impl From<argument::Arg> for Incubator {
 
         Self {
             kifudir,
+            kifufile,
             log,
             mate,
             // matefiles,
@@ -412,11 +416,12 @@ impl Incubator {
                 self.run_shorten()
             },
             argument::Mode::Validate => {
-                self.run_validate()
+                // self.run_validate()
+                self.run_validate_cassio()
             },
-            _ => {
-                Ok(())
-            },
+            // _ => {
+            //     Ok(())
+            // },
         }
     }
 
@@ -493,7 +498,8 @@ impl Incubator {
 
         let pbtop = if self.show_progressbar {
             let pb = self.multibar.add(
-                ProgressBar::new(self.kifudir.len() as u64 + 1));
+                ProgressBar::new(
+                    (self.kifudir.len() + self.kifufile.len() + 1) as u64));
             Some(pb)
         } else {
             None
@@ -579,6 +585,78 @@ impl Incubator {
             }
             if let Some(pb) = &pbchild {
                 pb.inc(1);  // 7
+                pb.finish();
+                // self.multibar.remove(pb);
+            }
+            if let Some(pb ) = &pbtop {pb.inc(1);}
+        }
+        for f in self.kifufile.iter() {
+            let pbchild = if self.show_progressbar {
+                let pb = self.multibar.add(ProgressBar::new(4));
+                    // load, dedup, extract, dedup, augmentation, dedup, store
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}]{wide_bar}{pos}/{len} {msg}").unwrap()
+                    .progress_chars("📘📖📙"));
+                pb.set_message("loading kifu...");
+                Some(pb)
+            } else {
+                None
+            };
+            let boards =
+                data_loader::load_kifu(f, self.mate, &mut self.log, show_path);
+            if let Some(pb) = &pbchild {
+                pb.set_message(f.to_string());
+                pb.inc(1);
+            }  // 1
+
+            // no dedup
+
+            let (tx, rx) = std::sync::mpsc::channel::<String>();
+            let outdir = outdir.clone();
+            let store_thread = std::thread::spawn(move || {
+                Self::store_rfen_thread(rx, &outdir, "spread");
+            });
+            if let Some(pb) = &pbchild {pb.inc(1);}  // 2
+
+            // ruversiに展開してもらう
+            let pbgrandchild = if self.show_progressbar {
+                let pb = self.multibar.add(
+                ProgressBar::new(boards.len() as u64));
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}] {wide_bar} [{eta_precise}] {pos}/{len} {msg}").unwrap()
+                    .progress_chars("🥚🐔🐤"));
+                Some(pb)
+            } else {
+                None
+            };
+            let mut rr = ruversirunner::RuversiRunner::from_config(
+                &std::path::PathBuf::from(
+                    self.ruversi_config.clone())).unwrap();
+            rr.set_verbose(self.verbose);
+            for ban in boards.iter() {
+                let mates = match rr.run_all_children(&ban.to_string()) {
+                    Err(msg) => {panic!("{msg}")},
+                    Ok(ban) => {
+                        if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                        ban
+                    },
+                };
+
+                let data = mates.join("\n");
+                if !data.is_empty() {tx.send(data).unwrap();}
+            }
+            if let Some(pb) = &pbchild {pb.inc(1);}  // 3
+
+            tx.send(String::new()).unwrap();  // send quit
+            store_thread.join().unwrap();
+            if let Some(pb) = &pbgrandchild {
+                pb.finish();
+                self.multibar.remove(pb);
+            }
+            if let Some(pb) = &pbchild {
+                pb.inc(1);  // 4
                 pb.finish();
                 // self.multibar.remove(pb);
             }
@@ -722,7 +800,7 @@ impl Incubator {
     }
 
     #[allow(dead_code)]
-    fn dedup_rfen(&self, path : &str, pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
+    fn dedup_rfen(&self, path : &str, _pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
         let path_aug = path.to_string() + ".Aug";
         let path_uniq = path.to_string() + ".Uniq";
 
@@ -786,9 +864,9 @@ impl Incubator {
                 // find a same line in Aug
                 if Self::find_line_any(&target, &path_uniq) {continue;}
             }
-            let mut finB = OpenOptions::new()
-                    .create(true).append(true).open(&path_uniq)?;
-            finB.write_all((line + "\n").as_bytes())?;
+            OpenOptions::new()
+                    .create(true).append(true).open(&path_uniq)?
+                    .write_all((line + "\n").as_bytes())?;
         }
 
         if let Some(pb) = &pbar {
@@ -798,7 +876,7 @@ impl Incubator {
         Ok(())
     }
 
-    fn dedup_rfen_in_mem(&self, path : &str, pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
+    fn dedup_rfen_in_mem(&self, path : &str, _pb : &Option<ProgressBar>) -> Result<(), std::io::Error> {
         let path_uniq = path.to_string() + ".Uniq";
         let path_aug = path.to_string() + ".Aug";
         // let mut filtered = Vec::with_capacity(1000000);
@@ -947,11 +1025,11 @@ impl Incubator {
             //     panic!("if !filtered.contains(&line)");
             // }
         }
-        // let mut finB = OpenOptions::new()
-        //         .create(true).append(true).open(&path_uniq)?;
-        // // finB.write_all((filtered..join("\n") + "\n").as_bytes())?;
-        // finB.write_all((filtered.into_iter().collect::<Vec<String>>()
-        //         .join("\n") + "\n").as_bytes())?;
+        // OpenOptions::new()
+        //         .create(true).append(true).open(&path_uniq)?
+        //         // .write_all((filtered..join("\n") + "\n").as_bytes())?;
+        //         .write_all((filtered.into_iter().collect::<Vec<String>>()
+        //             .join("\n") + "\n").as_bytes())?;
         tx.send(String::new()).unwrap();
         tx2.send(String::new()).unwrap();
         file_store.join().unwrap();
@@ -1000,7 +1078,9 @@ impl Incubator {
                 None
             };
             let files = data_loader::findfiles(&format!("./{d}"));
-            if let Some(pb) = &pbchild {pb.set_length(files.len() as u64 + 4);}
+            if let Some(pb) = &pbchild {
+                pb.set_length(files.len() as u64 * 2);
+            }
             for fname in files {
                 let path = format!("{d}/{fname}");
                 {
@@ -1034,14 +1114,7 @@ impl Incubator {
                 tx.send(String::new()).unwrap();  // send quit
                 store_thread.join().unwrap();
             }
-            if let Some(pb) = &pbchild {pb.inc(1);}  // 1
-
-            // if let Some(pb) = &pbgrandchild {
-            //     pb.finish();
-            //     self.multibar.remove(pb);
-            // }
             if let Some(pb) = &pbchild {
-                pb.inc(1);  // 4
                 pb.finish();
                 // self.multibar.remove(pb);
             }
@@ -1054,6 +1127,7 @@ impl Incubator {
         Ok(())
     }
 
+    #[allow(dead_code)]
     /// validate
     fn run_validate(&mut self) -> Result<(), std::io::Error> {
         if self.mate < 3 || 60 <= self.mate {
@@ -1148,6 +1222,157 @@ impl Incubator {
                     if !data.is_empty() {tx.send(data).unwrap();}
                     if let Some(pb) = &pbgrandchild {pb.inc(1);}
                 }
+                if let Some(pb) = &pbchild {pb.inc(1);}  // 3
+
+                tx.send(String::new()).unwrap();  // send quit
+                store_thread.join().unwrap();
+                if let Some(pb) = &pbgrandchild {
+                    pb.finish();
+                    self.multibar.remove(pb);
+                }
+            }
+            if let Some(pb) = &pbchild {pb.inc(1);}  // 1
+
+            // if let Some(pb) = &pbgrandchild {
+            //     pb.finish();
+            //     self.multibar.remove(pb);
+            // }
+            if let Some(pb) = &pbchild {
+                pb.inc(1);  // 4
+                pb.finish();
+                // self.multibar.remove(pb);
+            }
+            if let Some(pb ) = &pbtop {pb.inc(1);}
+        }
+
+        if let Some(pb ) = &pbtop {
+            pb.finish_with_message("done!");
+        }
+        Ok(())
+    }
+
+    /// validate w/ cassio protocol
+    fn run_validate_cassio(&mut self) -> Result<(), std::io::Error> {
+        if self.mate < 3 || 60 <= self.mate {
+            panic!("self.mate < 3 || 60 <= self.mate");
+        }
+
+        let pbtop = if self.show_progressbar {
+            let pb = self.multibar.add(
+                ProgressBar::new(self.kifudir.len() as u64 * 2 + 1));
+            Some(pb)
+        } else {
+            None
+        };
+
+        // read kifus and extract moves.
+        let show_path = self.verbose;
+        let mut outdir = std::env::current_dir().unwrap().clone();
+        outdir.push(&self.outdir);
+        // let outdir = self.outdir.clone();
+        if let Some(pb) = &pbtop {pb.inc(1);}  // 1
+
+        // let valptn = Regex::new("[BW](-?[0-9.]+)").unwrap();
+        let valptn = Regex::new(", [BW]([-+]?[0-9.]+)").unwrap();
+        for d in self.kifudir.iter() {
+            let files = data_loader::findfiles(&format!("./{d}"));
+            if let Some(pb) = &pbtop {pb.inc(1);}  // 2n
+
+            let pbchild = if self.show_progressbar {
+                let pb = self.multibar.add(ProgressBar::new(files.len() as u64 * 2));
+                    // load, dedup, extract, dedup, augmentation, dedup, store
+                pb.set_style(
+                    ProgressStyle::with_template(
+                        "[{elapsed_precise}]{wide_bar}[{eta_precise}] {pos}/{len} {msg}").unwrap()
+                    .progress_chars("📜📔📖"));
+                pb.set_message("loading kifu...");
+                Some(pb)
+            } else {
+                None
+            };
+            for fname in files {
+                let path = format!("{d}/{fname}");
+                {
+                    let shared = std::sync::Mutex::new(&self.log);
+                    let mut l = shared.lock().unwrap();
+                    l.write_all(format!("{path}\n").as_bytes()).unwrap();
+                }
+                if show_path {print!("{path}\r");}
+                if let Some(pb) = &pbchild {pb.set_message(fname.to_string());}
+                let mut boards = data_loader::load_mates_all(&path).unwrap();
+
+                data_loader::dedupboards(&mut boards, &mut self.log, show_path);
+                if let Some(pb) = &pbchild {pb.inc(1);}  // 2
+
+                let outdir = outdir.clone();
+                let (tx, rx) = std::sync::mpsc::channel::<String>();
+                let store_thread = std::thread::spawn(move || {
+                    Self::store_rfen_thread(rx, &outdir, "validate");
+                });
+
+                // validate score w/ ruversi
+                let pbgrandchild = if self.show_progressbar {
+                    let pb = self.multibar.add(
+                    ProgressBar::new(boards.len() as u64));
+                    pb.set_style(
+                        ProgressStyle::with_template(
+                            "[{elapsed_precise}] {wide_bar} [{eta_precise}] {pos}/{len} {msg}").unwrap()
+                        .progress_chars("🥚🐔🐤"));
+                    pb.set_message(fname.to_string());
+                    Some(pb)
+                } else {
+                    None
+                };
+                // for (ban, _, _, score) in boards {
+                let chunk_size = 2000;
+                for brds in boards.chunks(chunk_size) {
+                    let cas = match cassiorunner::CassioRunner::from_config(
+                    &std::path::PathBuf::from(self.ruversi_config.clone())) {
+                        Ok(cas) => {cas},
+                        Err(e) => {
+                            panic!("failed to run cassio program: {e}")
+                        },
+                        };
+                    let mut cassio =
+                        cassio::OthelloEngineProtocolServer::new1(cas.run().unwrap());
+                    cassio.setturn(bitboard::SENTE);  // choose player1
+                    cassio.init().unwrap();
+                    // println!("program:{}", cassio.get_version().unwrap());
+                    {
+                        let shared = std::sync::Mutex::new(&self.log);
+                        let mut l = shared.lock().unwrap();
+                        l.write_all(format!("program:{}", cassio.get_version().unwrap()).as_bytes()).unwrap();
+                    }
+                    for (ban, _, _, _score) in brds {
+                        // if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                        // data += &format!("{},{score}\n", ban.to_string_short());
+                        // eprintln!("{},{score}", ban.to_string_short());
+                        let response = match cassio.endgame_search(
+                            &ban.to_obf(), -999f32, 999f32, 0) {
+                                Ok(msg) => {msg},
+                                Err(e) => {panic!("cassio com error: {e}")},
+                            };
+                        // eprintln!("{response}");
+                        // response:
+                        // "{obf}, move {mvstr}, depth {depth}, @0%, {range}, {hash}, node {nodes}, time {sec:3}"
+                        // range: "B{val:.2} <= v <= B{val:.2}"
+                        // range: "W{val:.2} <= v <= W{val:.2}"
+                        // eprintln!("resp:{response}");
+                        let cap = valptn.captures(&response).unwrap();
+                        let score_txt = cap.get(1).unwrap().as_str();
+                        let new_score = score_txt.parse::<f32>().unwrap();
+                        if new_score - new_score.floor() > 1e-5 {
+                            panic!("new_score:{new_score} is not an integer!");
+                        }
+                        let new_score = new_score as i8;
+                        let data = format!("{},{new_score}", ban.to_string_short());
+                        tx.send(data).unwrap();
+                        if let Some(pb) = &pbgrandchild {pb.inc(1);}
+                        // sleep(std::time::Duration::from_millis(1));
+                     }
+                    cassio.quit().unwrap();
+                }
+                // }
                 if let Some(pb) = &pbchild {pb.inc(1);}  // 3
 
                 tx.send(String::new()).unwrap();  // send quit

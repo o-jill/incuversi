@@ -682,6 +682,7 @@ impl BitBoard {
         ((self.white >> BitBoard::index(x, y)) & LSB_CELL) as f32
     }
 
+    #[allow(dead_code)]
     pub fn is_filled(&self, xy: u8) -> bool {
         let bit : u64 = LSB_CELL << xy;
         (bit & (self.black | self.white)) != 0
@@ -1174,6 +1175,7 @@ impl BitBoard {
         (mine & bit & GUARD_LEFT) != 0 && rev != 0
     }
 
+    #[allow(dead_code)]
     /**
      * @param xy PASS : pass, 0 ~ 63 : cell index.
      */
@@ -1250,6 +1252,7 @@ impl BitBoard {
         (self.black.count_ones() as i8 - self.white.count_ones() as i8) as f32
     }
 
+    #[allow(dead_code)]
     /// 最後のひとマスを埋めて石の差を返す。
     ///
     /// # Returns
@@ -1280,6 +1283,7 @@ impl BitBoard {
         (self.black | self.white) == u64::MAX
     }
 
+    #[allow(dead_code)]
     pub fn is_last1_or_full(&self) -> bool {
         self.nblank() <= 1
     }
@@ -1411,6 +1415,7 @@ impl BitBoard {
         b
     }
 
+    #[allow(dead_code)]
     /// オーグメンテーション
     /// 回転させたものや鏡反転させたものを生成する。
     ///
