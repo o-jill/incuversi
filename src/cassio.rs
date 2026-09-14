@@ -368,13 +368,20 @@ impl OthelloEngineProtocolServer {
     }
 
     pub fn quit(&mut self) -> Result<(), String> {
-        let (toeng, _fromeng, _fromerr) = self.getio()?;
+        {
+            let (toeng, _fromeng, _fromerr) = self.getio()?;
 
-        if let Err(e) = toeng.write_all("ENGINE-PROTOCOL quit\n".as_bytes()) {
-            return Err(e.to_string());
+            if let Err(e) = toeng.write_all("ENGINE-PROTOCOL quit\n".as_bytes()) {
+                return Err(e.to_string());
+            }
         }
 
-        sleep(Duration::from_millis(1));
+        if let Some(mut ch) = self.ply1.take() {
+            let _ = ch.wait().map_err(|err| err.to_string())?;
+        }
+        if let Some(mut ch) = self.ply2.take() {
+            let _ = ch.wait().map_err(|err| err.to_string())?;
+        }
 
         Ok(())
     }
