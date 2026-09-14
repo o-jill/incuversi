@@ -129,6 +129,10 @@ fn read_mate_file_all(buf : impl std::io::BufRead)
                 let elem : Vec<&str> = l.split(",").collect();
                 // let ban = bitboard::BitBoard::try_from(elem[0])?;
                 // let ban = bitboard::BitBoard::try_from(elem[0]).map_err(|e| e + elem[0])?;
+                if elem.len() < 2 {
+                    eprintln!("invalid # of elements:{} < 2", elem.len());
+                    continue;
+                }
                 let ban = match bitboard::BitBoard::try_from(elem[0]) {
                     Err(e) => {
                         eprintln!("{e} {}", elem[0]);
