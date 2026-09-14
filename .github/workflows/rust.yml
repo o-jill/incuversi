@@ -51,9 +51,9 @@ jobs:
       run: |
         mkdir upld
         cp *.txt upld/
-        cp spread upld/
-        cp shorten upld/
-        cp validated upld/
+        cp -r spread upld/
+        cp -r shorten upld/
+        cp -r validated upld/
     - name: Set current datetime as env variable
       env:
         TZ: 'Asia/Tokyo' # タイムゾーン指定
