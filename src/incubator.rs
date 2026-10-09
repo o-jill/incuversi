@@ -1326,7 +1326,7 @@ impl Incubator {
                     None
                 };
                 // for (ban, _, _, score) in boards {
-                let chunk_size = 2000;
+                let chunk_size = 200000;
                 for brds in boards.chunks(chunk_size) {
                     let cas = match cassiorunner::CassioRunner::from_config(
                     &std::path::PathBuf::from(self.ruversi_config.clone())) {
