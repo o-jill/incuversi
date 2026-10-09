@@ -230,12 +230,30 @@ pub fn load_mates_all(path : &str)
     }
 }
 
+/// bitboard並べ替え+重複削除。
 pub fn dedupboards(boards : &mut Vec<(bitboard::BitBoard, i8, i8, i8)>,
                    log : &mut std::fs::File, show_path : bool) {
     // println!("board: {} boards", boards.len());
     // let sta = std::time::Instant::now();
     boards.sort_by(|a, b| {
         a.0.partial_cmp(&b.0).unwrap()
+    });
+    boards.dedup_by(|a, b| {a == b});
+    // println!("{}usec",sta.elapsed().as_micros());
+    let msg = format!("board: {} boards\n", boards.len());
+    log.write_all(msg.as_bytes()).unwrap();
+    if show_path {print!("{msg}");}
+}
+
+/// short rfen並べ替え+重複削除。
+pub fn dedupboards_srfen(boards : &mut Vec<(bitboard::BitBoard, i8, i8, i8)>,
+                   log : &mut std::fs::File, show_path : bool) {
+    // println!("board: {} boards", boards.len());
+    // let sta = std::time::Instant::now();
+    boards.sort_by(|a, b| {
+        let sa = a.0.to_string_short();
+        let sb = b.0.to_string_short();
+        sa.cmp(&sb)
     });
     boards.dedup_by(|a, b| {a == b});
     // println!("{}usec",sta.elapsed().as_micros());

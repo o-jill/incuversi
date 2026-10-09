@@ -1092,7 +1092,8 @@ impl Incubator {
                 if let Some(pb) = &pbchild {pb.set_message(fname.to_string());}
                 let mut boards = data_loader::load_mates_all(&path).unwrap();
 
-                data_loader::dedupboards(&mut boards, &mut self.log, show_path);
+                data_loader::dedupboards_srfen(&mut boards, &mut self.log, show_path);
+                // data_loader::dedupboards(&mut boards, &mut self.log, show_path);
                 if let Some(pb) = &pbchild {pb.inc(1);}  // 2
 
                 let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -1301,7 +1302,8 @@ impl Incubator {
                 if let Some(pb) = &pbchild {pb.set_message(fname.to_string());}
                 let mut boards = data_loader::load_mates_all(&path).unwrap();
 
-                data_loader::dedupboards(&mut boards, &mut self.log, show_path);
+                data_loader::dedupboards_srfen(&mut boards, &mut self.log, show_path);
+                // data_loader::dedupboards(&mut boards, &mut self.log, show_path);
                 if let Some(pb) = &pbchild {pb.inc(1);}  // 2
 
                 let outdir = outdir.clone();
