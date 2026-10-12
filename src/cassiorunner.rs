@@ -158,11 +158,7 @@ impl CassioRunner {
             .stderr(Stdio::piped());
             // .stderr(Stdio::null());
         // println!("cmd:{cmd:?}");
-        let ret = cmd.spawn();
-        if let Err(e) = ret {
-            panic!("spawn error: {e}");
-        }
-        ret
+        cmd.spawn();
     }
 
     pub fn run(&self) -> Result<Child, String> {
