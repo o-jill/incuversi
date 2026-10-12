@@ -1,12 +1,13 @@
 use std::io::Write;
 use clap::Parser;
 
-mod kifu;
-mod bitboard;
-// mod weight;
 mod argument;
+mod bitboard;
+mod cassio;
+mod cassiorunner;
 mod data_loader;
 mod incubator;
+mod kifu;
 mod ruversirunner;
 
 fn main() -> Result<(), std::io::Error> {
